@@ -698,7 +698,7 @@ const GrandCityManagementComplete = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {owners.map(owner => {
                 const ownerBills = bills.filter(b => b.owner_id === owner.id);
-                const overdueBills = ownerBills.filter(b => b.status === 'Overdue' || (b.status === 'Pending' && new Date(b.due_date) < new Date()));
+                const overdueBills = ownerBills.filter(b => (b.status === 'Overdue') || (b.status === 'Pending' && new Date(b.due_date) < new Date()));
                 const totalBills = ownerBills.length;
                 const totalAmount = ownerBills.reduce((sum, b) => sum + (parseFloat(b.bill_amount) || 0), 0);
                 const billsByType = {
@@ -735,11 +735,16 @@ const GrandCityManagementComplete = () => {
                     <div className="mb-4">
                       <p className="text-white/60 text-sm mb-2">Buildings:</p>
                       <div className="flex flex-wrap gap-2">
-                        {Array.isArray(owner.buildings) && owner.buildings.map(b => (
-                          <span key={b} className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-lg text-sm">
-                            {b}
-                          </span>
-                        ))}
+                        {(() => {
+                          const buildings = typeof owner.buildings === 'string'
+                            ? JSON.parse(owner.buildings || '[]')
+                            : (Array.isArray(owner.buildings) ? owner.buildings : []);
+                          return buildings.map((b, idx) => (
+                            <span key={`${owner.id}-${idx}`} className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-lg text-sm">
+                              {b}
+                            </span>
+                          ));
+                        })()}
                       </div>
                     </div>
 
@@ -760,11 +765,13 @@ const GrandCityManagementComplete = () => {
                       )}
                     </div>
 
-                    {lastComm && (
+                    {lastComm && lastComm.subject && (
                       <div className="bg-white/5 rounded-lg p-3 mb-4">
                         <p className="text-white/70 text-xs mb-1">Last Communication:</p>
                         <p className="text-white text-sm font-semibold truncate">{lastComm.subject}</p>
-                        <p className="text-white/60 text-xs">{new Date(lastComm.date).toLocaleDateString()} via {lastComm.method}</p>
+                        <p className="text-white/60 text-xs">
+                          {lastComm.date ? new Date(lastComm.date).toLocaleDateString() : 'N/A'} via {lastComm.method || 'N/A'}
+                        </p>
                       </div>
                     )}
 

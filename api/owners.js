@@ -38,10 +38,30 @@ export default async function handler(req, res) {
         if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Owner not found' });
         }
-        return res.status(200).json(result.rows[0]);
+        const owner = result.rows[0];
+        // Parse buildings if it's a JSON string
+        if (typeof owner.buildings === 'string') {
+          try {
+            owner.buildings = JSON.parse(owner.buildings);
+          } catch (e) {
+            owner.buildings = [];
+          }
+        }
+        return res.status(200).json(owner);
       } else {
         const result = await pool.query('SELECT * FROM owners ORDER BY name ASC');
-        return res.status(200).json(result.rows);
+        // Parse buildings for all owners
+        const owners = result.rows.map(owner => {
+          if (typeof owner.buildings === 'string') {
+            try {
+              return { ...owner, buildings: JSON.parse(owner.buildings) };
+            } catch (e) {
+              return { ...owner, buildings: [] };
+            }
+          }
+          return owner;
+        });
+        return res.status(200).json(owners);
       }
     }
 
@@ -60,7 +80,17 @@ export default async function handler(req, res) {
         [name, mobile, email, JSON.stringify(buildingsArray), notes]
       );
 
-      return res.status(201).json(result.rows[0]);
+      const newOwner = result.rows[0];
+      // Parse buildings for response
+      if (typeof newOwner.buildings === 'string') {
+        try {
+          newOwner.buildings = JSON.parse(newOwner.buildings);
+        } catch (e) {
+          newOwner.buildings = [];
+        }
+      }
+
+      return res.status(201).json(newOwner);
     }
 
     if (req.method === 'PUT') {
@@ -87,7 +117,17 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Owner not found' });
       }
 
-      return res.status(200).json(result.rows[0]);
+      const updatedOwner = result.rows[0];
+      // Parse buildings for response
+      if (typeof updatedOwner.buildings === 'string') {
+        try {
+          updatedOwner.buildings = JSON.parse(updatedOwner.buildings);
+        } catch (e) {
+          updatedOwner.buildings = [];
+        }
+      }
+
+      return res.status(200).json(updatedOwner);
     }
 
     if (req.method === 'DELETE') {
