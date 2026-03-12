@@ -1,30 +1,21 @@
 // Vercel Serverless Function for Rent Tracking CRUD operations
-// This uses the Neon PostgreSQL database
 
 import pkg from 'pg';
 
 const { Pool } = pkg;
 
-// Initialize PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Neon uses SSL
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// Helper function to set CORS headers
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 }
 
-// Helper function to handle OPTIONS request for CORS
 function handleOptions(req, res) {
   if (req.method === 'OPTIONS') {
     setCorsHeaders(res);
@@ -35,9 +26,7 @@ function handleOptions(req, res) {
 }
 
 export default async function handler(req, res) {
-  // Handle CORS preflight
   if (handleOptions(req, res)) return;
-
   setCorsHeaders(res);
 
   try {
@@ -46,7 +35,6 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (id) {
-        // Get single rent record
         const result = await pool.query(
           `SELECT r.*, o.name as owner_name
            FROM rent_tracking r
@@ -61,7 +49,6 @@ export default async function handler(req, res) {
 
         return res.status(200).json(result.rows[0]);
       } else {
-        // Get all rent records with optional filters
         let query = `
           SELECT r.*, o.name as owner_name
           FROM rent_tracking r
@@ -97,21 +84,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      const body = await getRequestBody(req);
       const {
-        buildingNumber,
-        buildingName,
-        floor,
-        unitNumber,
-        ownerId,
-        tenantName,
-        monthlyRent,
-        rentMonth,
-        paidDate,
-        status,
-        amountPaid,
-        paymentMethod,
-        notes
-      } = req.body;
+        buildingNumber, buildingName, floor, unitNumber, ownerId,
+        tenantName, monthlyRent, rentMonth, paidDate, status,
+        amountPaid, paymentMethod, notes
+      } = body;
 
       const result = await pool.query(
         `INSERT INTO rent_tracking (
@@ -121,9 +99,19 @@ export default async function handler(req, res) {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
         [
-          buildingNumber, buildingName, floor, unitNumber, ownerId || null,
-          tenantName, monthlyRent || 0, rentMonth, paidDate,
-          status || 'Pending', amountPaid || 0, paymentMethod, notes
+          buildingNumber,
+          buildingName,
+          floor,
+          unitNumber || '',
+          ownerId || null,
+          tenantName,
+          monthlyRent || 0,
+          rentMonth,
+          paidDate,
+          status || 'Pending',
+          amountPaid || 0,
+          paymentMethod || '',
+          notes || ''
         ]
       );
 
@@ -132,33 +120,30 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing rent record id' });
+      }
+
+      const body = await getRequestBody(req);
       const {
-        buildingNumber,
-        buildingName,
-        floor,
-        unitNumber,
-        ownerId,
-        tenantName,
-        monthlyRent,
-        rentMonth,
-        paidDate,
-        status,
-        amountPaid,
-        paymentMethod,
-        notes
-      } = req.body;
+        buildingNumber, buildingName, floor, unitNumber, ownerId,
+        tenantName, monthlyRent, rentMonth, paidDate, status,
+        amountPaid, paymentMethod, notes
+      } = body;
 
       const result = await pool.query(
         `UPDATE rent_tracking SET
-          building_number = $1, building_name = $2, floor = $3, unit_number = $4,
-          owner_id = $5, tenant_name = $6, monthly_rent = $7, rent_month = $8,
-          paid_date = $9, status = $10, amount_paid = $11, payment_method = $12, notes = $13
+          building_number = $1, building_name = $2, floor = $3,
+          unit_number = $4, owner_id = $5, tenant_name = $6,
+          monthly_rent = $7, rent_month = $8, paid_date = $9,
+          status = $10, amount_paid = $11, payment_method = $12,
+          notes = $13
         WHERE id = $14
         RETURNING *`,
         [
-          buildingNumber, buildingName, floor, unitNumber, ownerId || null,
+          buildingNumber, buildingName, floor, unitNumber || '', ownerId || null,
           tenantName, monthlyRent, rentMonth, paidDate, status,
-          amountPaid, paymentMethod, notes, id
+          amountPaid, paymentMethod, notes || '', id
         ]
       );
 
@@ -171,6 +156,9 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing rent record id' });
+      }
 
       const result = await pool.query(
         'DELETE FROM rent_tracking WHERE id = $1 RETURNING *',
@@ -189,4 +177,18 @@ export default async function handler(req, res) {
     console.error('Rent API error:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
+}
+
+async function getRequestBody(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data || '{}'));
+      } catch {
+        resolve({});
+      }
+    });
+  });
 }

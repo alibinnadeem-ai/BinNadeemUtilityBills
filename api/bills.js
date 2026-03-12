@@ -34,7 +34,6 @@ function handleOptions(req, res) {
   return false;
 }
 
-// GET all bills or a specific bill by ID
 export default async function handler(req, res) {
   // Handle CORS preflight
   if (handleOptions(req, res)) return;
@@ -75,10 +74,10 @@ export default async function handler(req, res) {
         if (search) {
           paramCount++;
           query += ` AND (
-            b.company_name ILIKE $${paramCount} OR
             b.building_number ILIKE $${paramCount} OR
             b.building_name ILIKE $${paramCount} OR
             b.floor ILIKE $${paramCount} OR
+            b.company_name ILIKE $${paramCount} OR
             b.customer_id ILIKE $${paramCount} OR
             b.consumer_number ILIKE $${paramCount} OR
             b.bill_type ILIKE $${paramCount} OR
@@ -113,6 +112,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      const body = await getRequestBody(req);
       const {
         companyName,
         buildingNumber,
@@ -131,7 +131,7 @@ export default async function handler(req, res) {
         billAmount,
         paidBy,
         notes
-      } = req.body;
+      } = body;
 
       const result = await pool.query(
         `INSERT INTO bills (
@@ -141,10 +141,23 @@ export default async function handler(req, res) {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *`,
         [
-          companyName, buildingNumber, buildingName, floor, unitNumber,
-          ownerId || null, billType, customerId, consumerNumber, accountNumber,
-          referenceNumber, dueDate, billMonth, status || 'Pending',
-          billAmount || 0, paidBy || 'Company', notes
+          companyName,
+          buildingNumber,
+          buildingName,
+          floor || '',
+          unitNumber || '',
+          ownerId || null,
+          billType,
+          customerId || '',
+          consumerNumber || '',
+          accountNumber || '',
+          referenceNumber || '',
+          dueDate,
+          billMonth,
+          status || 'Pending',
+          billAmount || 0,
+          paidBy || 'Company',
+          notes || ''
         ]
       );
 
@@ -153,40 +166,40 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const {
-        companyName,
-        buildingNumber,
-        buildingName,
-        floor,
-        unitNumber,
-        ownerId,
-        billType,
-        customerId,
-        consumerNumber,
-        accountNumber,
-        referenceNumber,
-        dueDate,
-        billMonth,
-        status,
-        billAmount,
-        paidBy,
-        notes
-      } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing bill id' });
+      }
 
+      const body = await getRequestBody(req);
       const result = await pool.query(
         `UPDATE bills SET
           company_name = $1, building_number = $2, building_name = $3,
-          floor = $4, unit_number = $5, owner_id = $6, bill_type = $7,
-          customer_id = $8, consumer_number = $9, account_number = $10,
-          reference_number = $11, due_date = $12, bill_month = $13,
-          status = $14, bill_amount = $15, paid_by = $16, notes = $17
+          floor = $4, unit_number = $5, owner_id = $6,
+          bill_type = $7, customer_id = $8, consumer_number = $9,
+          account_number = $10, reference_number = $11, due_date = $12,
+          bill_month = $13, status = $14, bill_amount = $15,
+          paid_by = $16, notes = $17
         WHERE id = $18
         RETURNING *`,
         [
-          companyName, buildingNumber, buildingName, floor, unitNumber,
-          ownerId || null, billType, customerId, consumerNumber, accountNumber,
-          referenceNumber, dueDate, billMonth, status,
-          billAmount, paidBy, notes, id
+          body.companyName,
+          body.buildingNumber,
+          body.buildingName,
+          body.floor || '',
+          body.unitNumber || '',
+          body.ownerId || null,
+          body.billType,
+          body.customerId || '',
+          body.consumerNumber || '',
+          body.accountNumber || '',
+          body.referenceNumber || '',
+          body.dueDate,
+          body.billMonth,
+          body.status,
+          body.billAmount,
+          body.paidBy,
+          body.notes,
+          id
         ]
       );
 
@@ -199,6 +212,9 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing bill id' });
+      }
 
       const result = await pool.query(
         'DELETE FROM bills WHERE id = $1 RETURNING *',
@@ -217,4 +233,19 @@ export default async function handler(req, res) {
     console.error('Bills API error:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
+}
+
+// Helper to parse request body
+async function getRequestBody(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data || '{}'));
+      } catch {
+        resolve({});
+      }
+    });
+  });
 }

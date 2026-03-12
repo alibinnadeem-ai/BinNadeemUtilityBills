@@ -1,30 +1,21 @@
 // Vercel Serverless Function for Communications CRUD operations
-// This uses the Neon PostgreSQL database
 
 import pkg from 'pg';
 
 const { Pool } = pkg;
 
-// Initialize PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Neon uses SSL
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// Helper function to set CORS headers
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 }
 
-// Helper function to handle OPTIONS request for CORS
 function handleOptions(req, res) {
   if (req.method === 'OPTIONS') {
     setCorsHeaders(res);
@@ -35,9 +26,7 @@ function handleOptions(req, res) {
 }
 
 export default async function handler(req, res) {
-  // Handle CORS preflight
   if (handleOptions(req, res)) return;
-
   setCorsHeaders(res);
 
   try {
@@ -46,7 +35,6 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (id) {
-        // Get single communication
         const result = await pool.query(
           `SELECT c.*, o.name as owner_name, o.email as owner_email
            FROM communications c
@@ -61,19 +49,16 @@ export default async function handler(req, res) {
 
         return res.status(200).json(result.rows[0]);
       } else {
-        // Get all communications with optional filters
         let query = `
-          SELECT c.*, o.name as owner_name, o.email as owner_email
+          SELECT c.*, o.name as owner_name
           FROM communications c
           LEFT JOIN owners o ON c.owner_id = o.id
           WHERE 1=1
         `;
         const params = [];
-        let paramCount = 0;
 
         if (ownerId) {
-          paramCount++;
-          query += ` AND c.owner_id = $${paramCount}`;
+          query += ` AND c.owner_id = $1`;
           params.push(ownerId);
         }
 
@@ -85,13 +70,21 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { ownerId, subject, message, method, date, notes } = req.body;
+      const body = await getRequestBody(req);
+      const { ownerId, subject, message, method, date, notes } = body;
 
       const result = await pool.query(
         `INSERT INTO communications (owner_id, subject, message, method, date, notes)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *`,
-        [ownerId || null, subject, message, method || 'Email', date, notes]
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [
+          ownerId || null,
+          subject,
+          message,
+          method || 'Email',
+          date || new Date().toISOString().split('T')[0],
+          notes || ''
+        ]
       );
 
       return res.status(201).json(result.rows[0]);
@@ -99,6 +92,9 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing communication id' });
+      }
 
       const result = await pool.query(
         'DELETE FROM communications WHERE id = $1 RETURNING *',
@@ -117,4 +113,18 @@ export default async function handler(req, res) {
     console.error('Communications API error:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
+}
+
+async function getRequestBody(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data || '{}'));
+      } catch {
+        resolve({});
+      }
+    });
+  });
 }

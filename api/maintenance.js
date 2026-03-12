@@ -1,30 +1,21 @@
-// Vercel Serverless Function for Maintenance Items CRUD operations
-// This uses the Neon PostgreSQL database
+// Vercel Serverless Function for Maintenance CRUD operations
 
 import pkg from 'pg';
 
 const { Pool } = pkg;
 
-// Initialize PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Neon uses SSL
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// Helper function to set CORS headers
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 }
 
-// Helper function to handle OPTIONS request for CORS
 function handleOptions(req, res) {
   if (req.method === 'OPTIONS') {
     setCorsHeaders(res);
@@ -35,9 +26,7 @@ function handleOptions(req, res) {
 }
 
 export default async function handler(req, res) {
-  // Handle CORS preflight
   if (handleOptions(req, res)) return;
-
   setCorsHeaders(res);
 
   try {
@@ -46,19 +35,12 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (id) {
-        // Get single maintenance item
-        const result = await pool.query(
-          'SELECT * FROM maintenance_items WHERE id = $1',
-          [id]
-        );
-
+        const result = await pool.query('SELECT * FROM maintenance_items WHERE id = $1', [id]);
         if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Maintenance item not found' });
         }
-
         return res.status(200).json(result.rows[0]);
       } else {
-        // Get all maintenance items with optional filters
         let query = 'SELECT * FROM maintenance_items WHERE 1=1';
         const params = [];
         let paramCount = 0;
@@ -89,17 +71,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const {
-        buildingNumber,
-        floor,
-        description,
-        priority,
-        dueDate,
-        status,
-        assignedTo,
-        cost,
-        notes
-      } = req.body;
+      const body = await getRequestBody(req);
+      const { buildingNumber, floor, description, priority, dueDate, status, assignedTo, cost, notes } = body;
 
       const result = await pool.query(
         `INSERT INTO maintenance_items (
@@ -108,8 +81,15 @@ export default async function handler(req, res) {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *`,
         [
-          buildingNumber, floor, description, priority || 'Medium',
-          dueDate, status || 'Pending', assignedTo, cost || 0, notes
+          buildingNumber,
+          floor || '',
+          description,
+          priority || 'Medium',
+          dueDate,
+          status || 'Pending',
+          assignedTo || '',
+          cost || 0,
+          notes || ''
         ]
       );
 
@@ -118,17 +98,12 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const {
-        buildingNumber,
-        floor,
-        description,
-        priority,
-        dueDate,
-        status,
-        assignedTo,
-        cost,
-        notes
-      } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing maintenance item id' });
+      }
+
+      const body = await getRequestBody(req);
+      const { buildingNumber, floor, description, priority, dueDate, status, assignedTo, cost, notes } = body;
 
       const result = await pool.query(
         `UPDATE maintenance_items SET
@@ -138,8 +113,8 @@ export default async function handler(req, res) {
         WHERE id = $10
         RETURNING *`,
         [
-          buildingNumber, floor, description, priority, dueDate, status,
-          assignedTo, cost, notes, id
+          buildingNumber, floor || '', description, priority, dueDate, status,
+          assignedTo || '', cost || 0, notes || '', id
         ]
       );
 
@@ -152,6 +127,9 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
+      if (!id) {
+        return res.status(400).json({ error: 'Missing maintenance item id' });
+      }
 
       const result = await pool.query(
         'DELETE FROM maintenance_items WHERE id = $1 RETURNING *',
@@ -170,4 +148,18 @@ export default async function handler(req, res) {
     console.error('Maintenance API error:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
+}
+
+async function getRequestBody(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data || '{}'));
+      } catch {
+        resolve({});
+      }
+    });
+  });
 }
