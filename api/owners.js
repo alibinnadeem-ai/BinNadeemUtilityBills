@@ -9,6 +9,40 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+function parseBuildings(value) {
+  if (Array.isArray(value)) return value;
+  if (value == null) return [];
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    // JSON array format
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    // Postgres text[] literal format, e.g. {170,171}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return trimmed
+        .slice(1, -1)
+        .split(',')
+        .map((v) => v.replace(/^"|"$/g, '').trim())
+        .filter(Boolean);
+    }
+
+    // Comma-separated fallback
+    return trimmed.split(',').map((v) => v.trim()).filter(Boolean);
+  }
+
+  return [];
+}
+
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -39,28 +73,14 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Owner not found' });
         }
         const owner = result.rows[0];
-        // Parse buildings if it's a JSON string
-        if (typeof owner.buildings === 'string') {
-          try {
-            owner.buildings = JSON.parse(owner.buildings);
-          } catch (e) {
-            owner.buildings = [];
-          }
-        }
+        owner.buildings = parseBuildings(owner.buildings);
         return res.status(200).json(owner);
       } else {
         const result = await pool.query('SELECT * FROM owners ORDER BY name ASC');
-        // Parse buildings for all owners
-        const owners = result.rows.map(owner => {
-          if (typeof owner.buildings === 'string') {
-            try {
-              return { ...owner, buildings: JSON.parse(owner.buildings) };
-            } catch (e) {
-              return { ...owner, buildings: [] };
-            }
-          }
-          return owner;
-        });
+        const owners = result.rows.map(owner => ({
+          ...owner,
+          buildings: parseBuildings(owner.buildings)
+        }));
         return res.status(200).json(owners);
       }
     }
@@ -81,14 +101,7 @@ export default async function handler(req, res) {
       );
 
       const newOwner = result.rows[0];
-      // Parse buildings for response
-      if (typeof newOwner.buildings === 'string') {
-        try {
-          newOwner.buildings = JSON.parse(newOwner.buildings);
-        } catch (e) {
-          newOwner.buildings = [];
-        }
-      }
+      newOwner.buildings = parseBuildings(newOwner.buildings);
 
       return res.status(201).json(newOwner);
     }
@@ -118,14 +131,7 @@ export default async function handler(req, res) {
       }
 
       const updatedOwner = result.rows[0];
-      // Parse buildings for response
-      if (typeof updatedOwner.buildings === 'string') {
-        try {
-          updatedOwner.buildings = JSON.parse(updatedOwner.buildings);
-        } catch (e) {
-          updatedOwner.buildings = [];
-        }
-      }
+      updatedOwner.buildings = parseBuildings(updatedOwner.buildings);
 
       return res.status(200).json(updatedOwner);
     }

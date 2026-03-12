@@ -44,6 +44,37 @@ const GrandCityManagementComplete = () => {
     ownerId: '', subject: '', message: '', method: 'Email', date: new Date().toISOString().split('T')[0]
   });
 
+  const normalizeBuildings = useCallback((value) => {
+    if (Array.isArray(value)) return value;
+    if (value == null) return [];
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        return trimmed
+          .slice(1, -1)
+          .split(',')
+          .map(v => v.replace(/^"|"$/g, '').trim())
+          .filter(Boolean);
+      }
+
+      return trimmed.split(',').map(v => v.trim()).filter(Boolean);
+    }
+
+    return [];
+  }, []);
+
   // Fetch all data from API on mount
   const fetchData = useCallback(async () => {
     try {
@@ -743,9 +774,7 @@ const GrandCityManagementComplete = () => {
                       <p className="text-white/60 text-sm mb-2">Buildings:</p>
                       <div className="flex flex-wrap gap-2">
                         {(() => {
-                          const buildings = typeof owner.buildings === 'string'
-                            ? JSON.parse(owner.buildings || '[]')
-                            : (Array.isArray(owner.buildings) ? owner.buildings : []);
+                          const buildings = normalizeBuildings(owner.buildings);
                           return buildings.map((b, idx) => (
                             <span key={`${owner.id}-${idx}`} className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-lg text-sm">
                               {b}
