@@ -1123,8 +1123,8 @@ const GrandCityManagementComplete = () => {
 
         {/* Add Owner Modal */}
         {showOwnerModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">{editingItem ? 'Edit Owner' : 'Add New Owner'}</h2>
                 <button onClick={() => { setShowOwnerModal(false); setEditingItem(null); }} className="p-2 hover:bg-white/10 rounded-lg">
@@ -1182,8 +1182,8 @@ const GrandCityManagementComplete = () => {
 
         {/* Add Maintenance Modal */}
         {showMaintenanceModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">{editingItem ? 'Edit Maintenance' : 'Add New Maintenance'}</h2>
                 <button onClick={() => { setShowMaintenanceModal(false); setEditingItem(null); }} className="p-2 hover:bg-white/10 rounded-lg">
@@ -1257,8 +1257,8 @@ const GrandCityManagementComplete = () => {
 
         {/* Add Communication Modal */}
         {showCommunicationModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Log Communication</h2>
                 <button onClick={() => setShowCommunicationModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
