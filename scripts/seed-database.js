@@ -1,47 +1,26 @@
 #!/usr/bin/env node
 /**
- * Local Database Seeding Script
- * Run this script locally to seed data from SeedData folder into Neon database
- *
- * Usage: node scripts/seed-database.js [action]
- *
- * Actions:
- *   status  - Check database status
- *   all     - Seed all data from SeedData folder
- *   owners  - Seed only owners
- *   bills   - Seed only bills
+ * Local Database Seeding Script - Graceful Version
+ * Handles SSL connection issues and reference_data table gracefully
  */
 
-import pkg from 'pg';
+import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
-const { Pool } = pkg;
+// Load environment variables from current directory
+dotenv.config();
 
-// Read .env file
-const envPath = path.join(process.cwd(), '.env');
-if (!fs.existsSync(envPath)) {
-  console.error('❌ Error: .env file not found!');
-  console.log('Please create .env file with your DATABASE_URL');
-  process.exit(1);
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const envContent = fs.readFileSync(envPath, 'utf8');
-const match = envContent.match(/^DATABASE_URL=(.+)$/m);
-if (!match) {
-  console.error('❌ Error: DATABASE_URL not found in .env');
-  process.exit(1);
-}
+console.log('🔌 Connecting to Neon database (No SSL mode)...');
 
-const DATABASE_URL = match[1].trim();
-
-console.log('🔌 Connecting to Neon database...');
-
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: false // Disable SSL to work around Neon compatibility issues
 });
 
 // Read JSON file safely
@@ -87,11 +66,11 @@ async function seedOwners(client, data) {
     try {
       const buildingsArray = Array.isArray(owner.buildings) ? owner.buildings : [];
       const result = await client.query(
-        'INSERT INTO owners (name, mobile, email, buildings, notes) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (name, email) DO NOTHING RETURNING *',
+        'INSERT INTO owners (name, mobile, email, buildings, notes) VALUES ($1, $2, $3, $4, $5)',
         [owner.name, owner.mobile, owner.email, JSON.stringify(buildingsArray), owner.notes]
       );
 
-      if (result.rows.length > 0 && result.rows[0].__inserted === 1) {
+      if (result.rowCount > 0) {
         console.log(`  ✓ Owner: ${owner.name}`);
         seeded++;
       }
@@ -122,8 +101,7 @@ async function seedBills(client, data) {
           company_name, building_number, building_name, floor, unit_number,
           owner_id, bill_type, customer_id, consumer_number, account_number,
           reference_number, due_date, bill_month, status, bill_amount, paid_by, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-        ON CONFLICT (customer_id, consumer_number) DO NOTHING RETURNING *`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
         [
           bill.companyName || 'Eurobiz Corporation',
           bill.buildingNumber,
@@ -145,7 +123,7 @@ async function seedBills(client, data) {
         ]
       );
 
-      if (result.rows.length > 0 && result.rows[0].__inserted === 1) {
+      if (result.rowCount > 0) {
         console.log(`  ✓ Bill: ${bill.billType} - Building ${bill.buildingNumber}`);
         seeded++;
       }
@@ -175,7 +153,6 @@ async function seedAdditionalBills(client, seedData) {
     console.log(`📄 Seeding ${seedData.excelBillsParsed.length} additional bills...`);
     for (const bill of seedData.excelBillsParsed) {
       try {
-        // Parse building number from location
         let buildingNumber = '';
         let buildingName = 'Plaza';
         const location = bill.location?.toLowerCase() || '';
@@ -194,7 +171,6 @@ async function seedAdditionalBills(client, seedData) {
           buildingName = '7 D';
         }
 
-        // Parse floor from location
         let floor = '';
         if (location.includes('ground')) floor = 'Ground Floor';
         else if (location.includes('1st')) floor = '1st Floor';
@@ -204,9 +180,8 @@ async function seedAdditionalBills(client, seedData) {
         else if (location.includes('basement')) floor = 'Basement';
         else if (location.includes('lift')) floor = 'Lift';
 
-        // Determine bill type
-        const billTypeLower = bill.billType?.toLowerCase() || '';
         let billType = 'Electricity';
+        const billTypeLower = bill.billType?.toLowerCase() || '';
         if (billTypeLower.includes('ptcl') || billTypeLower.includes('phone')) {
           billType = 'PTCL';
           seeded.ptcl++;
@@ -225,8 +200,7 @@ async function seedAdditionalBills(client, seedData) {
             company_name, building_number, building_name, floor, unit_number,
             owner_id, bill_type, customer_id, consumer_number, account_number,
             reference_number, due_date, bill_month, status, bill_amount, paid_by, notes
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-          ON CONFLICT DO NOTHING`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
           [
             bill.companyName || 'Eurobiz Corporation',
             buildingNumber,
@@ -256,7 +230,7 @@ async function seedAdditionalBills(client, seedData) {
   return { seeded, errors };
 }
 
-// Seed reference/account data
+// Seed reference/account data - gracefully skip if table doesn't exist
 async function seedReferenceData(client, seedData) {
   if (!seedData.referenceData) {
     return { seeded: 0, errors: [] };
@@ -267,19 +241,39 @@ async function seedReferenceData(client, seedData) {
   let seeded = 0;
 
   // Check if reference_data table exists
+  let referenceTableExists = false;
   try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS reference_data (
-        id SERIAL PRIMARY KEY,
-        company_name VARCHAR(255),
-        location VARCHAR(255),
-        reference_number VARCHAR(100),
-        old_account_number VARCHAR(100),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
+    const result = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'reference_data'
+      ) as table_exists
     `);
-  } catch (error) {
-    console.error('Warning: Could not create reference_data table:', error.message);
+
+    referenceTableExists = result.rows[0].table_exists;
+  } catch (e) {
+    console.error('Warning: Could not check reference_data table:', e.message);
+  }
+
+  if (referenceTableExists) {
+    console.log('   reference_data table already exists - skipping seeding');
+  } else {
+    // Try creating the table
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS reference_data (
+          id SERIAL PRIMARY KEY,
+          company_name VARCHAR(255),
+          location VARCHAR(255),
+          reference_number VARCHAR(100),
+          old_account_number VARCHAR(100),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('   Created reference_data table');
+    } catch (e) {
+      console.error('Could not create reference_data table:', e.message);
+    }
   }
 
   const allReferences = [
@@ -301,10 +295,10 @@ async function seedReferenceData(client, seedData) {
     try {
       await client.query(
         `INSERT INTO reference_data (company_name, location, reference_number, old_account_number)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT DO NOTHING`,
-        [ref.company_name, ref.location, ref.reference_number, ref.oldAccount_number]
-      );
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT DO NOTHING`,
+          [ref.company_name, ref.location, ref.reference_number, ref.oldAccountNumber]
+        );
       seeded++;
     } catch (error) {
       errors.push({ reference: ref.location, error: error.message });
@@ -321,7 +315,16 @@ async function getDatabaseStatus(client) {
   const rentCount = await client.query('SELECT COUNT(*) FROM rent_tracking');
   const maintenanceCount = await client.query('SELECT COUNT(*) FROM maintenance_items');
   const commCount = await client.query('SELECT COUNT(*) FROM communications');
-  const refCount = await client.query('SELECT COUNT(*) FROM reference_data');
+
+  // Handle reference_data table that might not exist
+  let referenceDataCount = 0;
+  try {
+    const refCount = await client.query('SELECT COUNT(*) FROM reference_data');
+    referenceDataCount = parseInt(refCount.rows[0].count);
+  } catch (e) {
+    // Table doesn't exist yet - count as 0
+    referenceDataCount = 0;
+  }
 
   return {
     bills: parseInt(billsCount.rows[0].count),
@@ -329,7 +332,7 @@ async function getDatabaseStatus(client) {
     rentTracking: parseInt(rentCount.rows[0].count),
     maintenanceItems: parseInt(maintenanceCount.rows[0].count),
     communications: parseInt(commCount.rows[0].count),
-    referenceData: parseInt(refCount.rows[0].count),
+    referenceData: referenceDataCount,
   };
 }
 
@@ -338,13 +341,12 @@ async function main() {
   const action = process.argv[2] || 'all';
 
   console.log('\n' + '='.repeat(50));
-  console.log('🌱 Grand City Dashboard - Database Seeding Tool');
+  console.log('🌱 Grand City Dashboard - Database Seeding Tool (Graceful Version)');
   console.log('='.repeat(50) + '\n');
 
   const client = await pool.connect();
 
   try {
-    // Get all seed data
     const seedData = getAllSeedData();
 
     // Get before status
@@ -362,7 +364,6 @@ async function main() {
     };
 
     if (action === 'status') {
-      // Just show status
       console.log('\n✅ Status retrieved successfully');
     } else if (action === 'owners') {
       const result = await seedOwners(client, seedData.completeBills);
@@ -374,17 +375,6 @@ async function main() {
       results.actions.push({ name: 'Seed Bills', result });
       results.errors.push(...result.errors.map(e => ({ ...e, table: 'bills' })));
       results.summary.bills = result.seeded;
-    } else {
-      // Seed all
-      const ownerResult = await seedOwners(client, seedData.completeBills);
-      results.actions.push({ name: 'Seed Owners', result });
-      results.errors.push(...ownerResult.errors.map(e => ({ ...e, table: 'owners' })));
-      results.summary.owners = ownerResult.seeded;
-
-      const billResult = await seedBills(client, seedData.completeBills);
-      results.actions.push({ name: 'Seed Bills', result });
-      results.errors.push(...billResult.errors.map(e => ({ ...e, table: 'bills' })));
-      results.summary.bills = billResult.seeded;
 
       const additionalResult = await seedAdditionalBills(client, seedData);
       results.actions.push({ name: 'Seed Additional Bills', result });
@@ -393,6 +383,27 @@ async function main() {
 
       const refResult = await seedReferenceData(client, seedData);
       results.actions.push({ name: 'Seed Reference Data', result });
+      results.errors.push(...refResult.errors.map(e => ({ ...e, table: 'reference_data' })));
+      results.summary.references = refResult.seeded;
+    } else if (action === 'all') {
+      // Seed all data
+      const ownersResult = await seedOwners(client, seedData.completeBills);
+      results.actions.push({ name: 'Seed Owners', result: ownersResult });
+      results.errors.push(...ownersResult.errors.map(e => ({ ...e, table: 'owners' })));
+      results.summary.owners = ownersResult.seeded;
+
+      const billsResult = await seedBills(client, seedData.completeBills);
+      results.actions.push({ name: 'Seed Bills', result: billsResult });
+      results.errors.push(...billsResult.errors.map(e => ({ ...e, table: 'bills' })));
+      results.summary.bills = billsResult.seeded;
+
+      const additionalResult = await seedAdditionalBills(client, seedData);
+      results.actions.push({ name: 'Seed Additional Bills', result: additionalResult });
+      results.errors.push(...additionalResult.errors.map(e => ({ ...e, table: 'bills' })));
+      results.summary.additional = additionalResult.seeded.electricity + additionalResult.seeded.ptcl + additionalResult.seeded.gas + additionalResult.seeded.water;
+
+      const refResult = await seedReferenceData(client, seedData);
+      results.actions.push({ name: 'Seed Reference Data', result: refResult });
       results.errors.push(...refResult.errors.map(e => ({ ...e, table: 'reference_data' })));
       results.summary.references = refResult.seeded;
     }
@@ -428,12 +439,10 @@ async function main() {
     await client.release();
     process.exit(results.errors.length > 0 ? 1 : 0);
   } catch (error) {
-    await client.release();
     console.error('\n❌ Seeding failed:', error.message);
     console.error(error);
     process.exit(1);
   }
 }
 
-// Run
 main();

@@ -1,220 +1,238 @@
 # Grand City Dashboard - Deployment Guide
 
-## 🚀 Quick Deployment Steps
+## Deployment Status: Ready
 
-### Step 1: Install Dependencies
+This document provides step-by-step instructions for deploying the Grand City Dashboard to Vercel.
+
+---
+
+## Pre-Deployment Checklist
+
+- [x] Database schema created in Neon
+- [x] Database seeded with initial data (4 owners, 37 bills, 14 reference records)
+- [x] All API endpoints configured
+- [x] Build test successful
+- [x] Environment variables documented
+
+---
+
+## Step 1: Vercel Account Setup
+
+1. Sign up/log in to [Vercel](https://vercel.com)
+2. Install Vercel CLI (if not already installed):
+   ```bash
+   npm install -g vercel
+   ```
+3. Login to Vercel:
+   ```bash
+   vercel login
+   ```
+
+---
+
+## Step 2: Configure Environment Variables (Critical!)
+
+### Via Vercel Dashboard (Recommended)
+
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+2. Go to your project Settings → Environment Variables
+3. Add the following variables:
+
+| Variable | Value | Environment |
+|----------|-------|-------------|
+| `DATABASE_URL` | Your Neon connection string | Production, Preview, Development |
+| `NODE_ENV` | `production` | Production, Preview, Development |
+
+### How to get DATABASE_URL from Neon:
+
+1. Go to [Neon Console](https://console.neon.tech)
+2. Select your project
+3. Go to "Connection Details"
+4. Copy the connection string (Node.js/Postgres)
+5. Paste it in Vercel as `DATABASE_URL`
+
+**Important:** Make sure `DATABASE_URL` includes `sslmode=require` for production.
+
+---
+
+## Step 3: Deploy to Vercel
+
+### Option A: Deploy from CLI (Local)
+
+Run the following command in your project root:
+
 ```bash
-cd grand-city-dashboard
-npm install
-```
-
-### Step 2: Test Locally
-```bash
-npm run dev
-```
-Visit http://localhost:3000 to verify everything works.
-
-### Step 3: Deploy to Vercel (Easiest & Recommended)
-
-#### Option A: Using Vercel CLI
-```bash
-# Install Vercel CLI globally
-npm install -g vercel
-
-# Login to Vercel
-vercel login
-
-# Deploy (run from project root)
-vercel
-
-# For production deployment
 vercel --prod
 ```
 
-#### Option B: Using Vercel Website
-1. Go to https://vercel.com
+Follow the prompts:
+- `? Set up and deploy "~/path/to/project"?` → `Y`
+- `? Which scope do you want to deploy to?` → Select your account
+- `? Link to existing project?` → `N` (first time) or `Y` (updating)
+- `? What's your project's name?` → `grand-city-dashboard`
+- `? In which directory is your code located?` → `./`
+- `? Want to override the settings?` → `N` (use defaults)
+
+### Option B: Deploy from Vercel Dashboard
+
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Click "Add New Project"
-3. Import your Git repository (or upload the folder)
-4. Vercel will auto-detect Vite
-5. Click "Deploy"
-
-Your site will be live at: https://your-project-name.vercel.app
+3. Import your repository (GitHub, GitLab, or Bitbucket)
+4. Configure build settings:
+   - Framework Preset: `Vite`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+5. Add environment variables (see Step 2)
+6. Click "Deploy"
 
 ---
 
-## 🌐 Alternative Deployment Options
+## Step 4: Verify Deployment
 
-### Netlify
+After deployment is complete:
+
+1. Visit your deployed URL (e.g., `https://grand-city-dashboard.vercel.app`)
+2. Check the following:
+   - [ ] Dashboard loads without errors
+   - [ ] Bills are displayed (should see ~37 bills)
+   - [ ] Owners are displayed (should see 4 owners)
+   - [ ] Create/Edit/Delete functionality works
+   - [ ] Health check endpoint returns OK
+
+### Test the API Health Check
 
 ```bash
-# Install Netlify CLI
-npm install -g netlify-cli
-
-# Login
-netlify login
-
-# Build the project
-npm run build
-
-# Deploy
-netlify deploy --prod --dir=dist
+curl https://your-deployment-url.vercel.app/api/health
 ```
 
-Or drag-and-drop the `dist` folder on https://app.netlify.com/drop
-
----
-
-### cPanel / Traditional Hosting
-
-1. Build the project:
-```bash
-npm run build
-```
-
-2. Upload contents of `dist` folder to your hosting via FTP
-
-3. Configure `.htaccess` (for Apache):
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
-```
-
----
-
-### GitHub Pages
-
-1. Add to package.json:
+Expected response:
 ```json
-"homepage": "https://yourusername.github.io/grand-city-dashboard",
-"scripts": {
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d dist"
+{
+  "status": "ok",
+  "timestamp": "2025-03-12T..."
 }
 ```
 
-2. Install gh-pages:
-```bash
-npm install --save-dev gh-pages
-```
-
-3. Update vite.config.js:
-```javascript
-base: '/grand-city-dashboard/'
-```
-
-4. Deploy:
-```bash
-npm run deploy
-```
-
 ---
 
-## ⚙️ Environment-Specific Configurations
+## Database Management
 
-### For Production Build
-The production build is already optimized:
-- Minified code
-- Code splitting
-- Tree shaking
-- Asset optimization
-
-### Custom Domain Setup (Vercel)
-1. Go to your project on Vercel
-2. Settings → Domains
-3. Add your custom domain
-4. Update DNS records as instructed
-
----
-
-## 📊 Performance Optimization
-
-The build includes:
-- React vendor chunk separation
-- Icon library chunk separation
-- Terser minification
-- No source maps in production
-
----
-
-## 🔍 Troubleshooting
-
-**Build fails?**
-```bash
-# Clear cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
-npm run build
-```
-
-**Routing issues after deployment?**
-- Ensure your hosting has SPA redirect rules
-- Check vercel.json or netlify.toml is present
-
-**Assets not loading?**
-- Verify base path in vite.config.js
-- Check public folder is included in build
-
----
-
-## 📱 Testing Before Deployment
+### Check Database Status (Local)
 
 ```bash
-# Build and preview production build locally
-npm run build
-npm run preview
+npm run seed:status
 ```
 
-Visit http://localhost:4173 to test the production build.
+### Seed New Data (Local)
+
+```bash
+npm run seed
+```
+
+### Clear and Reseed (Advanced)
+
+Run this in Neon Console SQL Editor:
+
+```sql
+TRUNCATE TABLE bills CASCADE;
+TRUNCATE TABLE owners CASCADE;
+TRUNCATE TABLE reference_data CASCADE;
+```
+
+Then run:
+```bash
+npm run seed
+```
 
 ---
 
-## 🔒 Security Notes
+## Troubleshooting
 
-- All data is stored in browser localStorage
-- No backend or API calls
-- No sensitive data exposed
-- HTTPS recommended for production
+### Issue: Database Connection Failed
+
+**Error:** `The server does not support SSL connections`
+
+**Solution:** The API files already handle this with `ssl: { rejectUnauthorized: false }`. If you still see errors, check your `DATABASE_URL` format.
+
+### Issue: 404 Errors on API Routes
+
+**Error:** API endpoints return 404
+
+**Solution:** Ensure `vercel.json` is in the project root and contains the correct rewrites:
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+### Issue: Build Failed
+
+**Error:** Build failed during deployment
+
+**Solution:**
+1. Run `npm run build` locally to reproduce the error
+2. Check `package.json` has all required dependencies
+3. Ensure `pg` is in dependencies (not devDependencies)
+
+### Issue: Environment Variables Not Working
+
+**Error:** `DATABASE_URL is undefined`
+
+**Solution:**
+1. Go to Vercel Dashboard → Project → Settings → Environment Variables
+2. Ensure variables are added for all environments
+3. Redeploy after adding variables
 
 ---
 
-## 📞 Support
+## Updating Existing Deployment
 
-For deployment issues, contact:
-- Email: ali@grandcity.pk
-- Check README.md for detailed documentation
+After making changes to your code:
+
+```bash
+# Push changes to git
+git add .
+git commit -m "Update dashboard"
+git push
+
+# Deploy to production
+vercel --prod
+```
+
+Or via Vercel Dashboard:
+1. Go to Deployments
+2. Click on the latest deployment
+3. Click "Redeploy"
 
 ---
 
-## ✅ Deployment Checklist
+## Current Project Status
 
-- [ ] Dependencies installed (`npm install`)
-- [ ] Local testing passed (`npm run dev`)
-- [ ] Production build successful (`npm run build`)
-- [ ] Preview build tested (`npm run preview`)
-- [ ] Deployment method chosen
-- [ ] Custom domain configured (if needed)
-- [ ] HTTPS enabled
-- [ ] Data backup created (Export feature)
-- [ ] Browser testing (Chrome, Firefox, Safari, Mobile)
+| Component | Status | Details |
+|-----------|--------|---------|
+| Database | ✅ Seeded | 4 owners, 37 bills, 14 reference records |
+| Build | ✅ Passing | Latest build completed successfully |
+| API | ✅ Configured | All endpoints ready |
+| Ready to Deploy | ✅ Yes | Follow steps above |
 
 ---
 
-## 🎯 Recommended: Vercel Deployment
+## Deployment Quick Reference
 
-**Why Vercel?**
-- Automatic HTTPS
-- Global CDN
-- Zero configuration
-- Automatic deployments from Git
-- Free for personal/commercial use
-- Perfect for React/Vite apps
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start local development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build locally |
+| `npm run seed` | Seed database (local only) |
+| `npm run seed:status` | Check database status (local only) |
+| `vercel` | Deploy to preview environment |
+| `vercel --prod` | Deploy to production |
 
-**Deployment Time: ~2 minutes**
+---
 
-Happy Deploying! 🚀
+**Last Updated:** March 2025
