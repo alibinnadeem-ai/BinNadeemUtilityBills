@@ -78,7 +78,8 @@ const GrandCityManagementComplete = () => {
 
   // Get owner name by ID
   const getOwnerName = useCallback((ownerId) => {
-    const owner = owners.find(o => o.id === ownerId);
+    const safeOwners = Array.isArray(owners) ? owners : [];
+    const owner = safeOwners.find(o => o.id === ownerId);
     return owner ? owner.name : 'Unknown';
   }, [owners]);
 
@@ -98,10 +99,10 @@ const GrandCityManagementComplete = () => {
     try {
       if (editingItem) {
         const updated = await api.bills.update(editingItem.id, billFormData);
-        setBills(bills.map(bill => bill.id === editingItem.id ? { ...updated, ...billFormData } : bill));
+        setBills((Array.isArray(bills) ? bills : []).map(bill => bill.id === editingItem.id ? { ...updated, ...billFormData } : bill));
       } else {
         const newBill = await api.bills.create(billFormData);
-        setBills([...bills, newBill]);
+        setBills([...(Array.isArray(bills) ? bills : []), newBill]);
       }
       setShowAddBillModal(false);
       setBillFormData({});
@@ -115,7 +116,7 @@ const GrandCityManagementComplete = () => {
     if (window.confirm('Are you sure you want to delete this bill?')) {
       try {
         await api.bills.delete(id);
-        setBills(bills.filter(bill => bill.id !== id));
+        setBills((Array.isArray(bills) ? bills : []).filter(bill => bill.id !== id));
       } catch (error) {
         alert('Error deleting bill: ' + error.message);
       }
@@ -132,10 +133,10 @@ const GrandCityManagementComplete = () => {
     try {
       if (editingItem) {
         const updated = await api.owners.update(editingItem.id, ownerFormData);
-        setOwners(owners.map(owner => owner.id === editingItem.id ? { ...updated, ...ownerFormData } : owner));
+        setOwners((Array.isArray(owners) ? owners : []).map(owner => owner.id === editingItem.id ? { ...updated, ...ownerFormData } : owner));
       } else {
         const newOwner = await api.owners.create(ownerFormData);
-        setOwners([...owners, newOwner]);
+        setOwners([...(Array.isArray(owners) ? owners : []), newOwner]);
       }
       setShowOwnerModal(false);
       setOwnerFormData({ name: '', mobile: '', email: '', buildings: '', notes: '' });
@@ -149,7 +150,7 @@ const GrandCityManagementComplete = () => {
     if (window.confirm('Are you sure you want to delete this owner?')) {
       try {
         await api.owners.delete(id);
-        setOwners(owners.filter(owner => owner.id !== id));
+        setOwners((Array.isArray(owners) ? owners : []).filter(owner => owner.id !== id));
       } catch (error) {
         alert('Error deleting owner: ' + error.message);
       }
@@ -169,10 +170,10 @@ const GrandCityManagementComplete = () => {
     try {
       if (editingItem) {
         const updated = await api.maintenance.update(editingItem.id, maintenanceFormData);
-        setMaintenanceItems(maintenanceItems.map(item => item.id === editingItem.id ? { ...updated, ...maintenanceFormData } : item));
+        setMaintenanceItems((Array.isArray(maintenanceItems) ? maintenanceItems : []).map(item => item.id === editingItem.id ? { ...updated, ...maintenanceFormData } : item));
       } else {
         const newItem = await api.maintenance.create(maintenanceFormData);
-        setMaintenanceItems([...maintenanceItems, newItem]);
+        setMaintenanceItems([...(Array.isArray(maintenanceItems) ? maintenanceItems : []), newItem]);
       }
       setShowMaintenanceModal(false);
       setMaintenanceFormData({
@@ -189,7 +190,7 @@ const GrandCityManagementComplete = () => {
     if (window.confirm('Are you sure you want to delete this maintenance item?')) {
       try {
         await api.maintenance.delete(id);
-        setMaintenanceItems(maintenanceItems.filter(item => item.id !== id));
+        setMaintenanceItems((Array.isArray(maintenanceItems) ? maintenanceItems : []).filter(item => item.id !== id));
       } catch (error) {
         alert('Error deleting maintenance: ' + error.message);
       }
@@ -205,7 +206,7 @@ const GrandCityManagementComplete = () => {
   const handleAddCommunication = async () => {
     try {
       const newComm = await api.communications.create(communicationFormData);
-      setCommunications([...communications, newComm]);
+      setCommunications([...(Array.isArray(communications) ? communications : []), newComm]);
       setShowCommunicationModal(false);
       setCommunicationFormData({
         ownerId: '', subject: '', message: '', method: 'Email',
@@ -220,7 +221,7 @@ const GrandCityManagementComplete = () => {
     if (window.confirm('Are you sure you want to delete this communication?')) {
       try {
         await api.communications.delete(id);
-        setCommunications(communications.filter(comm => comm.id !== id));
+        setCommunications((Array.isArray(communications) ? communications : []).filter(comm => comm.id !== id));
       } catch (error) {
         alert('Error deleting communication: ' + error.message);
       }
@@ -250,7 +251,8 @@ const GrandCityManagementComplete = () => {
   };
 
   // Filtering - done client-side for simplicity
-  const filteredBills = bills.filter(bill => {
+  const safeBills = Array.isArray(bills) ? bills : [];
+  const filteredBills = safeBills.filter(bill => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
       bill.building_number?.toLowerCase().includes(searchLower) ||
@@ -271,26 +273,28 @@ const GrandCityManagementComplete = () => {
 
   // Statistics
   const stats = {
-    totalBills: bills.length,
-    paidBills: bills.filter(b => b.status === 'Paid').length,
-    pendingBills: bills.filter(b => b.status === 'Pending').length,
-    overdueBills: bills.filter(b => b.status === 'Overdue').length,
-    totalAmount: bills.reduce((sum, b) => sum + (parseFloat(b.bill_amount) || 0), 0),
-    electricityBills: bills.filter(b => b.bill_type === 'Electricity').length,
-    ptclBills: bills.filter(b => b.bill_type === 'PTCL').length,
-    gasBills: bills.filter(b => b.bill_type === 'Gas').length,
-    waterBills: bills.filter(b => b.bill_type === 'Water').length,
+    totalBills: safeBills.length,
+    paidBills: safeBills.filter(b => b.status === 'Paid').length,
+    pendingBills: safeBills.filter(b => b.status === 'Pending').length,
+    overdueBills: safeBills.filter(b => b.status === 'Overdue').length,
+    totalAmount: safeBills.reduce((sum, b) => sum + (parseFloat(b.bill_amount) || 0), 0),
+    electricityBills: safeBills.filter(b => b.bill_type === 'Electricity').length,
+    ptclBills: safeBills.filter(b => b.bill_type === 'PTCL').length,
+    gasBills: safeBills.filter(b => b.bill_type === 'Gas').length,
+    waterBills: safeBills.filter(b => b.bill_type === 'Water').length,
   };
 
-  const uniqueBuildings = [...new Set(bills.map(b => b.building_number))].sort();
-  const billTypes = [...new Set(bills.map(b => b.bill_type))].sort();
+  const uniqueBuildings = [...new Set(safeBills.map(b => b.building_number))].sort();
+  const billTypes = [...new Set(safeBills.map(b => b.bill_type))].sort();
 
   // Generate notifications
   useEffect(() => {
     const today = new Date();
     const newNotifications = [];
+    const safeBillsForNotifications = Array.isArray(bills) ? bills : [];
+    const safeMaintenanceForNotifications = Array.isArray(maintenanceItems) ? maintenanceItems : [];
 
-    bills.forEach(bill => {
+    safeBillsForNotifications.forEach(bill => {
       if (bill.status === 'Paid') return;
 
       const dueDate = new Date(bill.due_date);
@@ -307,7 +311,7 @@ const GrandCityManagementComplete = () => {
       }
     });
 
-    maintenanceItems.forEach(item => {
+    safeMaintenanceForNotifications.forEach(item => {
       if (item.status === 'Completed') return;
 
       const dueDate = new Date(item.due_date);
@@ -697,7 +701,10 @@ const GrandCityManagementComplete = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {owners.map(owner => {
-                const ownerBills = bills.filter(b => b.owner_id === owner.id);
+                const safeBills = Array.isArray(bills) ? bills : [];
+                const safeCommunications = Array.isArray(communications) ? communications : [];
+
+                const ownerBills = safeBills.filter(b => b.owner_id === owner.id);
                 const overdueBills = ownerBills.filter(b => (b.status === 'Overdue') || (b.status === 'Pending' && new Date(b.due_date) < new Date()));
                 const totalBills = ownerBills.length;
                 const totalAmount = ownerBills.reduce((sum, b) => sum + (parseFloat(b.bill_amount) || 0), 0);
@@ -707,7 +714,7 @@ const GrandCityManagementComplete = () => {
                   Gas: ownerBills.filter(b => b.bill_type === 'Gas').length,
                   Water: ownerBills.filter(b => b.bill_type === 'Water').length,
                 };
-                const lastComm = communications.find(c => c.owner_id === owner.id);
+                const lastComm = safeCommunications.find(c => c.owner_id === owner.id);
 
                 return (
                   <div key={owner.id} className="bg-white/5 border border-white/20 rounded-xl p-6">
@@ -856,7 +863,7 @@ const GrandCityManagementComplete = () => {
               </button>
             </div>
 
-            {maintenanceItems.length === 0 ? (
+            {(!Array.isArray(maintenanceItems) || maintenanceItems.length === 0) ? (
               <div className="text-center py-12">
                 <Wrench className="w-16 h-16 text-white/30 mx-auto mb-4" />
                 <p className="text-white/50 text-lg">No maintenance items yet.</p>
@@ -953,7 +960,7 @@ const GrandCityManagementComplete = () => {
               </button>
             </div>
 
-            {communications.length === 0 ? (
+            {(!Array.isArray(communications) || communications.length === 0) ? (
               <div className="text-center py-12">
                 <MessageSquare className="w-16 h-16 text-white/30 mx-auto mb-4" />
                 <p className="text-white/50 text-lg">No communications logged yet.</p>
@@ -961,7 +968,8 @@ const GrandCityManagementComplete = () => {
             ) : (
               <div className="space-y-4">
                 {communications.slice().reverse().map(comm => {
-                  const owner = owners.find(o => o.id === comm.owner_id);
+                  const safeOwners = Array.isArray(owners) ? owners : [];
+                  const owner = safeOwners.find(o => o.id === comm.owner_id);
                   return (
                     <div key={comm.id} className="bg-white/5 border border-white/20 rounded-lg p-6">
                       <div className="flex items-start justify-between mb-4">
@@ -1011,7 +1019,7 @@ const GrandCityManagementComplete = () => {
                   { field: 'buildingNumber', label: 'Building Number', type: 'text' },
                   { field: 'buildingName', label: 'Building Name', type: 'text' },
                   { field: 'floor', label: 'Floor', type: 'text' },
-                  { field: 'ownerId', label: 'Owner', type: 'select', options: owners.map(o => ({ value: o.id, label: `${o.name} - Bldg ${Array.isArray(o.buildings) ? o.buildings.join(', ') : o.buildings}` })) },
+                  { field: 'ownerId', label: 'Owner', type: 'select', options: (Array.isArray(owners) ? owners : []).map(o => ({ value: o.id, label: `${o.name} - Bldg ${Array.isArray(o.buildings) ? o.buildings.join(', ') : o.buildings}` })) },
                   { field: 'billType', label: 'Bill Type', type: 'select', options: ['Electricity', 'Gas', 'Water', 'PTCL', 'Sewerage', 'Internet', 'Maintenance'].map(t => ({ value: t, label: t })) },
                   { field: 'customerId', label: 'Customer ID', type: 'text' },
                   { field: 'consumerNumber', label: 'Consumer Number', type: 'text' },
@@ -1231,7 +1239,7 @@ const GrandCityManagementComplete = () => {
 
               <div className="space-y-4 mb-6">
                 {[
-                  { field: 'ownerId', label: 'Owner', type: 'select', options: owners.map(o => ({ value: o.id, label: o.name })) },
+                  { field: 'ownerId', label: 'Owner', type: 'select', options: (Array.isArray(owners) ? owners : []).map(o => ({ value: o.id, label: o.name })) },
                   { field: 'subject', label: 'Subject', type: 'text', required: true },
                   { field: 'method', label: 'Method', type: 'select', options: ['Email', 'Phone', 'SMS', 'In Person'] },
                   { field: 'date', label: 'Date', type: 'date', required: true },
