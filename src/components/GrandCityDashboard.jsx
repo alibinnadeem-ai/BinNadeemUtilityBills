@@ -3,7 +3,7 @@ import {
   Building2, FileText, Bell, Plus, Edit2, Trash2, Download, Upload,
   AlertCircle, CheckCircle, Clock, Search, X, Phone, Mail,
   MessageSquare, Wrench, TrendingUp, Users, Calendar, Filter,
-  Home, Zap, Droplet, Flame, Wifi, DollarSign, Loader2, RefreshCw
+  Home, Zap, Droplet, Flame, Wifi, DollarSign, Loader2, RefreshCw, Eye, ExternalLink
 } from 'lucide-react';
 import api from '../api/client';
 
@@ -29,10 +29,12 @@ const GrandCityManagementComplete = () => {
 
   // Modal states
   const [showAddBillModal, setShowAddBillModal] = useState(false);
+  const [showViewBillModal, setShowViewBillModal] = useState(false);
   const [showOwnerModal, setShowOwnerModal] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [viewingItem, setViewingItem] = useState(null);
 
   // Form states
   const [billFormData, setBillFormData] = useState({});
@@ -146,7 +148,9 @@ const GrandCityManagementComplete = () => {
     customerId: bill.customer_id || '',
     paidBy: bill.paid_by || 'Company',
     referenceNumber: bill.reference_number || '',
-    notes: bill.notes || ''
+    notes: bill.notes || '',
+    viewBillLink: bill.view_bill_link || '',
+    billPaymentLink: bill.bill_payment_link || ''
   });
 
   // Map form field names (camelCase) to API field names (backend expects camelCase for PUT/POST)
@@ -167,7 +171,9 @@ const GrandCityManagementComplete = () => {
     customerId: formData.customerId || '',
     paidBy: formData.paidBy || 'Company',
     referenceNumber: formData.referenceNumber || '',
-    notes: formData.notes || ''
+    notes: formData.notes || '',
+    viewBillLink: formData.viewBillLink || '',
+    billPaymentLink: formData.billPaymentLink || ''
   });
 
   const handleAddBill = async () => {
@@ -203,6 +209,11 @@ const GrandCityManagementComplete = () => {
     setEditingItem(bill);
     setBillFormData(mapApiToForm(bill));
     setShowAddBillModal(true);
+  };
+
+  const handleViewBill = (bill) => {
+    setViewingItem(bill);
+    setShowViewBillModal(true);
   };
 
   const handleAddOwner = async () => {
@@ -873,14 +884,23 @@ const GrandCityManagementComplete = () => {
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button
+                            onClick={() => handleViewBill(bill)}
+                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            title="View Bill"
+                          >
+                            <Eye className="w-4 h-4 text-green-300" />
+                          </button>
+                          <button
                             onClick={() => handleEditBill(bill)}
                             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            title="Edit Bill"
                           >
                             <Edit2 className="w-4 h-4 text-blue-300" />
                           </button>
                           <button
                             onClick={() => handleDeleteBill(bill.id)}
                             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            title="Delete Bill"
                           >
                             <Trash2 className="w-4 h-4 text-red-300" />
                           </button>
@@ -944,6 +964,13 @@ const GrandCityManagementComplete = () => {
                   </div>
 
                   <div className="flex gap-2 pt-3 border-t border-white/10">
+                    <button
+                      onClick={() => handleViewBill(bill)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
                     <button
                       onClick={() => handleEditBill(bill)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
@@ -1318,7 +1345,9 @@ const GrandCityManagementComplete = () => {
                   { field: 'billMonth', label: 'Bill Month', type: 'month' },
                   { field: 'billAmount', label: 'Bill Amount', type: 'number' },
                   { field: 'status', label: 'Status', type: 'select', options: ['Pending', 'Paid', 'Partial', 'Overdue'].map(s => ({ value: s, label: s })) },
-                  { field: 'paidBy', label: 'Paid By', type: 'select', options: [{ value: 'Company', label: 'Company' }, { value: 'Owner', label: 'Owner' }] }
+                  { field: 'paidBy', label: 'Paid By', type: 'select', options: [{ value: 'Company', label: 'Company' }, { value: 'Owner', label: 'Owner' }] },
+                  { field: 'viewBillLink', label: 'View Bill Link', type: 'url' },
+                  { field: 'billPaymentLink', label: 'Bill Payment Link', type: 'url' }
                 ].map(({ field, label, type, options }) => (
                   <div key={field}>
                     <label className="block mb-2 text-sm font-semibold">{label}</label>
@@ -1375,6 +1404,185 @@ const GrandCityManagementComplete = () => {
                   className="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg font-semibold"
                 >
                   {editingItem ? 'Update Bill' : 'Add Bill'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Bill Modal */}
+        {showViewBillModal && viewingItem && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-slate-800 rounded-2xl p-6 max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Bill Details</h2>
+                <button onClick={() => { setShowViewBillModal(false); setViewingItem(null); }} className="p-2 hover:bg-white/10 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2 bg-white/5 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    {getBillTypeIcon(viewingItem.bill_type)}
+                    <h3 className="text-xl font-bold">{viewingItem.company_name}</h3>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      viewingItem.status === 'Paid' ? 'bg-green-500/20 text-green-300' :
+                      viewingItem.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                      viewingItem.status === 'Overdue' ? 'bg-red-500/20 text-red-300' :
+                      'bg-blue-500/20 text-blue-300'
+                    }`}>
+                      {viewingItem.status}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-white">Rs. {parseFloat(viewingItem.bill_amount || 0).toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-white/70 mb-3">Location Details</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Building Number:</span>
+                      <span>{viewingItem.building_number || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Building Name:</span>
+                      <span>{viewingItem.building_name || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Floor:</span>
+                      <span>{viewingItem.floor || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Unit Number:</span>
+                      <span>{viewingItem.unit_number || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-white/70 mb-3">Owner Details</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Name:</span>
+                      <span>{viewingItem.owner_name || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Email:</span>
+                      <span className="text-sm">{viewingItem.owner_email || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Mobile:</span>
+                      <span>{viewingItem.owner_mobile || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-white/70 mb-3">Account Details</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Customer ID:</span>
+                      <span className="text-sm">{viewingItem.customer_id || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Consumer Number:</span>
+                      <span className="text-sm">{viewingItem.consumer_number || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Account Number:</span>
+                      <span className="text-sm">{viewingItem.account_number || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Reference Number:</span>
+                      <span className="text-sm">{viewingItem.reference_number || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-white/70 mb-3">Payment Details</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Bill Type:</span>
+                      <span>{viewingItem.bill_type || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Bill Month:</span>
+                      <span>{viewingItem.bill_month || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Due Date:</span>
+                      <span>{viewingItem.due_date ? new Date(viewingItem.due_date).toLocaleDateString() : '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Paid By:</span>
+                      <span>{viewingItem.paid_by || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-white/70 mb-3">Links</h4>
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-white/70">View Bill Link:</span>
+                      {viewingItem.view_bill_link ? (
+                        <a
+                          href={viewingItem.view_bill_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-blue-300 hover:text-blue-200 text-sm"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Open Bill
+                        </a>
+                      ) : (
+                        <span className="text-white/50 text-sm">No link provided</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-white/70">Bill Payment Link:</span>
+                      {viewingItem.bill_payment_link ? (
+                        <a
+                          href={viewingItem.bill_payment_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-green-300 hover:text-green-200 text-sm"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Pay Now
+                        </a>
+                      ) : (
+                        <span className="text-white/50 text-sm">No link provided</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {viewingItem.notes && (
+                  <div className="md:col-span-2 bg-white/5 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-white/70 mb-2">Notes</h4>
+                    <p className="text-white/90">{viewingItem.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  onClick={() => { setShowViewBillModal(false); setViewingItem(null); }}
+                  className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-semibold"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowViewBillModal(false);
+                    handleEditBill(viewingItem);
+                  }}
+                  className="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg font-semibold"
+                >
+                  Edit Bill
                 </button>
               </div>
             </div>

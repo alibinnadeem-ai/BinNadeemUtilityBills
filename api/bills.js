@@ -137,8 +137,8 @@ export default async function handler(req, res) {
         `INSERT INTO bills (
           company_name, building_number, building_name, floor, unit_number,
           owner_id, bill_type, customer_id, consumer_number, account_number,
-          reference_number, due_date, bill_month, status, bill_amount, paid_by, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          reference_number, due_date, bill_month, status, bill_amount, paid_by, notes, view_bill_link, bill_payment_link
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         RETURNING *`,
         [
           companyName,
@@ -157,7 +157,9 @@ export default async function handler(req, res) {
           status || 'Pending',
           billAmount || 0,
           paidBy || 'Company',
-          notes || ''
+          notes || '',
+          body.viewBillLink || '',
+          body.billPaymentLink || ''
         ]
       );
 
@@ -178,8 +180,8 @@ export default async function handler(req, res) {
           bill_type = $7, customer_id = $8, consumer_number = $9,
           account_number = $10, reference_number = $11, due_date = $12,
           bill_month = $13, status = $14, bill_amount = $15,
-          paid_by = $16, notes = $17
-        WHERE id = $18
+          paid_by = $16, notes = $17, view_bill_link = $18, bill_payment_link = $19
+        WHERE id = $20
         RETURNING *`,
         [
           body.companyName,
@@ -199,6 +201,8 @@ export default async function handler(req, res) {
           body.billAmount,
           body.paidBy,
           body.notes,
+          body.viewBillLink || '',
+          body.billPaymentLink || '',
           id
         ]
       );
