@@ -1,7 +1,7 @@
 {
-  "name": "grand-city-dashboard",
+  "name": "ard-utility-bills-dashboard",
   "version": "2.0.0",
-  "description": "Grand City Building Management System - Complete Dashboard with Neon Database",
+  "description": "ARD Utility Bills Management System - Complete Dashboard with Neon Database",
   "type": "module",
   "private": true,
   "scripts": {

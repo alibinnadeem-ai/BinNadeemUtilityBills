@@ -1,4 +1,4 @@
--- Grand City Building Management System - Neon PostgreSQL Schema
+-- ARD Utility Bills Management System - Neon PostgreSQL Schema
 -- Run this SQL in your Neon database console to create all tables
 
 -- Enable UUID extension for generating unique IDs

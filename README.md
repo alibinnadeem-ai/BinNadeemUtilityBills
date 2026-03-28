@@ -1,4 +1,4 @@
-# Grand City Management System
+# ARD Utility Bills Management System
 
 A comprehensive building management dashboard for managing bills, owners, rent, and maintenance across multiple properties with Neon PostgreSQL database and Vercel serverless API.
 
@@ -90,7 +90,7 @@ vercel --prod
 ## 📁 Project Structure
 
 ```
-grand-city-dashboard/
+ard-utility-bills-dashboard/
 ├── api/                    # Vercel Serverless Functions
 │   ├── bills.js            # Bills CRUD API
 │   ├── owners.js           # Owners CRUD API
@@ -210,11 +210,11 @@ grand-city-dashboard/
 
 ## 📝 License
 
-This project is private and proprietary to Grand City.
+This project is private and proprietary to ARD.
 
 ## 👨‍💻 Developer
 
-Built for Grand City by Ali
+Built for ARD by Ali
 - Email: ali@grandcity.pk
 - Version: 2.0.0
 - Last Updated: March 2025

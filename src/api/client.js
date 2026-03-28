@@ -1,4 +1,4 @@
-// API Client for Grand City Dashboard
+// API Client for ARD Utility Bills Dashboard
 // Handles all API communication with the Neon database via Vercel serverless functions
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
