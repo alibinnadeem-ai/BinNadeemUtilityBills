@@ -341,7 +341,7 @@ async function main() {
   const action = process.argv[2] || 'all';
 
   console.log('\n' + '='.repeat(50));
-  console.log('🌱 ARD Utility Bills Dashboard - Database Seeding Tool (Graceful Version)');
+  console.log('🌱 Bin Nadeem Utility Bills Dashboard - Database Seeding Tool (Graceful Version)');
   console.log('='.repeat(50) + '\n');
 
   const client = await pool.connect();

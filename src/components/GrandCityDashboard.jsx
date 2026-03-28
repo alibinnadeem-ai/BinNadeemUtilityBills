@@ -330,7 +330,7 @@ const GrandCityManagementComplete = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ard-utility-bills-complete-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `bin-nadeem-utility-bills-complete-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -483,7 +483,7 @@ const GrandCityManagementComplete = () => {
                 <Building2 className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl md:text-2xl font-bold">ARD Utility Bills Dashboard</h1>
+                <h1 className="text-xl md:text-2xl font-bold">Bin Nadeem Utility Bills Dashboard</h1>
                 <p className="text-white/60 text-sm">Building Management System v2.0</p>
               </div>
             </div>
